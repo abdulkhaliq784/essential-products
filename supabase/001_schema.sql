@@ -12,8 +12,11 @@
 --     current by the set_updated_at() trigger defined at the bottom.
 -- =============================================================================
 
-create extension if not exists pgcrypto;  -- gen_random_uuid()
-create extension if not exists pg_trgm;   -- fast ILIKE search on product names
+-- pg_trgm makes ILIKE '%word%' searches on product names fast.
+-- Supabase keeps extensions in the "extensions" schema.
+-- (gen_random_uuid() used below is built into Postgres 13+, no extension needed.)
+create schema if not exists extensions;
+create extension if not exists pg_trgm with schema extensions;
 
 -- ---------------------------------------------------------------------------
 -- Enum types
@@ -81,7 +84,7 @@ create table if not exists public.products (
 
 create index if not exists products_category_id_idx on public.products (category_id);
 create index if not exists products_featured_idx    on public.products (is_featured) where is_active;
-create index if not exists products_name_trgm_idx   on public.products using gin (name gin_trgm_ops);
+create index if not exists products_name_trgm_idx   on public.products using gin (name extensions.gin_trgm_ops);
 
 -- ---------------------------------------------------------------------------
 -- addresses: saved Indian shipping addresses

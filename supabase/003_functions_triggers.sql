@@ -111,7 +111,7 @@ as $$
   select 'EP-'
       || to_char(now() at time zone 'Asia/Kolkata', 'YYYYMMDD')
       || '-'
-      || upper(substr(encode(gen_random_bytes(4), 'hex'), 1, 6));
+      || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6));
 $$;
 
 alter table public.orders
