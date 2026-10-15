@@ -4,14 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRazorpay, getRazorpayKeySecret } from "@/lib/razorpay";
 import { isValidPaymentSignature } from "@/lib/razorpay-signature";
+import { checkPaymentConfig, jsonError as fail, withJsonErrors } from "@/lib/server-config";
 
 const bodySchema = z.object({
   razorpay_order_id: z.string().min(1),
   razorpay_payment_id: z.string().min(1),
   razorpay_signature: z.string().min(1),
 });
-
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status });
 
 /**
  * POST /api/checkout/verify
@@ -21,7 +20,10 @@ const fail = (status: number, error: string) => NextResponse.json({ error }, { s
  *  3. Marks the order paid and reduces stock (atomically, in mark_order_paid).
  * The webhook does the same independently, in case the browser never calls this.
  */
-export async function POST(request: NextRequest) {
+export const POST = withJsonErrors(async (request: NextRequest) => {
+  const configError = checkPaymentConfig();
+  if (configError) return configError;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -77,4 +79,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ orderId: order.id });
-}
+});

@@ -16,6 +16,27 @@ import type { Address } from "@/lib/types";
 
 type Step = "idle" | "creating" | "paying" | "verifying";
 
+/** Parse a JSON API response; if the server sent no/invalid JSON, return a friendly error instead of throwing. */
+async function readJson<T>(res: Response): Promise<T & { error?: string }> {
+  try {
+    return await res.json();
+  } catch {
+    return { error: `Our server didn't respond properly (error ${res.status}). Please try again in a moment.` } as T & {
+      error?: string;
+    };
+  }
+}
+
+type CreateOrderResponse = {
+  orderId: string;
+  orderNumber: string;
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  prefill: { name?: string; email?: string; contact?: string };
+};
+
 export function CheckoutClient({ userId, initialAddresses }: { userId: string; initialAddresses: Address[] }) {
   const router = useRouter();
   const { lines, count, status, reload } = useCart();
@@ -50,7 +71,7 @@ export function CheckoutClient({ userId, initialAddresses }: { userId: string; i
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(response),
       });
-      const data = await res.json();
+      const data = await readJson<{ orderId: string }>(res);
       if (!res.ok) throw new Error(data.error ?? "Payment verification failed.");
       await reload();
       router.push(`/order/${data.orderId}/confirmation`);
@@ -77,7 +98,7 @@ export function CheckoutClient({ userId, initialAddresses }: { userId: string; i
           body: JSON.stringify({ addressId: selectedId }),
         }),
       ]);
-      const data = await res.json();
+      const data = await readJson<CreateOrderResponse>(res);
       if (!res.ok) {
         if (res.status === 409) await reload(); // stock/price changed: refresh the cart view
         throw new Error(data.error ?? "Could not start payment.");

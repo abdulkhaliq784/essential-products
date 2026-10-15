@@ -4,11 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRazorpay } from "@/lib/razorpay";
 import { calculateTotals, MAX_QTY_PER_ITEM } from "@/lib/pricing";
+import { checkPaymentConfig, jsonError as fail, withJsonErrors } from "@/lib/server-config";
 import type { Address, ShippingAddress } from "@/lib/types";
 
 const bodySchema = z.object({ addressId: z.uuid() });
-
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status });
 
 /**
  * POST /api/checkout/create-order  { addressId }
@@ -19,7 +18,10 @@ const fail = (status: number, error: string) => NextResponse.json({ error }, { s
  * 4. Creates a "pending" order + order items, then a Razorpay order for the total (in paise).
  * Returns only what Razorpay Checkout needs in the browser; no secrets.
  */
-export async function POST(request: NextRequest) {
+export const POST = withJsonErrors(async (request: NextRequest) => {
+  const configError = checkPaymentConfig();
+  if (configError) return configError;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -151,4 +153,4 @@ export async function POST(request: NextRequest) {
       contact: `+91${address.phone}`,
     },
   });
-}
+});
